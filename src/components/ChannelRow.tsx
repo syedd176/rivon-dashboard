@@ -40,6 +40,11 @@ export function ChannelRow({ channel }: { channel: Channel }) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
+  // Meta channels cannot be connected until Rivon's own Meta app exists.
+  // The widget needs no such thing, which is why it always works.
+  const needsPlatformSetup =
+    channel.provider !== "widget" && !process.env.NEXT_PUBLIC_META_APP_ID;
+
   const embedSnippet = channel.embedKey
     ? `<script src="https://cdn.rivon.ai/widget.js" data-key="${channel.embedKey}" async></script>`
     : "";
@@ -66,7 +71,9 @@ export function ChannelRow({ channel }: { channel: Channel }) {
       <div className="flex flex-wrap items-start gap-4">
         <ProviderIcon color={meta.accent} letter={meta.name[0]} />
 
-        <div className="min-w-0 flex-1">
+        {/* basis-64 stops this column collapsing to one word per line when the
+            action column grows; it wraps below instead. */}
+        <div className="min-w-0 flex-1 basis-64">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
               {meta.name}
@@ -99,6 +106,19 @@ export function ChannelRow({ channel }: { channel: Channel }) {
               <span className="font-medium">Before you start:</span>{" "}
               {meta.requirement}
             </p>
+          )}
+
+          {channel.status === "disconnected" && needsPlatformSetup && (
+            <div className="mt-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+              <span className="font-semibold text-slate-700 dark:text-slate-300">
+                Setup needed by Rivon, not by you.
+              </span>{" "}
+              Connecting runs through Rivon&apos;s own Meta app, which has to be
+              created and reviewed once before any business can connect. Set{" "}
+              <code className="font-mono">NEXT_PUBLIC_META_APP_ID</code> and{" "}
+              <code className="font-mono">NEXT_PUBLIC_META_CONFIG_ID</code> to
+              enable this button.
+            </div>
           )}
 
           {channel.provider === "widget" && channel.embedKey && (

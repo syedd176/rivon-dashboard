@@ -204,21 +204,18 @@ export function WhatsAppConnect({
 
   const notConfigured = !appId || !configId;
 
+  // Before Rivon's own Meta app exists there is nothing for the button to
+  // point at. Show a disabled button so the row keeps its shape — the
+  // explanation of why belongs in the row body, not in this narrow column.
   if (notConfigured) {
     return (
-      <div className="rounded-md border border-slate-300 bg-slate-50 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900">
-        <p className="font-medium text-slate-900 dark:text-slate-100">
-          WhatsApp connection is not configured yet
-        </p>
-        <p className="mt-1 text-slate-600 dark:text-slate-400">
-          Set <code className="font-mono text-xs">NEXT_PUBLIC_META_APP_ID</code>{" "}
-          and{" "}
-          <code className="font-mono text-xs">
-            NEXT_PUBLIC_META_CONFIG_ID
-          </code>{" "}
-          once the Meta app has passed review.
-        </p>
-      </div>
+      <button
+        disabled
+        title="Rivon's Meta app is not set up yet"
+        className="cursor-not-allowed rounded-md bg-slate-200 px-4 py-2 text-sm font-medium text-slate-500 dark:bg-slate-800 dark:text-slate-500"
+      >
+        Connect
+      </button>
     );
   }
 
