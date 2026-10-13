@@ -6,6 +6,7 @@ import {
   PROVIDERS,
   relativeTime,
 } from "@/lib/channels";
+import { WhatsAppConnect } from "./WhatsAppConnect";
 
 function StatusPill({ status }: { status: Channel["status"] }) {
   const map = {
@@ -121,15 +122,22 @@ export function ChannelRow({ channel }: { channel: Channel }) {
         </div>
 
         <div className="flex shrink-0 gap-2">
-          {channel.status === "disconnected" && (
-            <button
-              onClick={connect}
-              disabled={busy}
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
-            >
-              {busy ? "Opening…" : "Connect"}
-            </button>
-          )}
+          {channel.status === "disconnected" &&
+            (channel.provider === "whatsapp" ? (
+              // WhatsApp uses Meta's Embedded Signup popup, not a redirect.
+              <WhatsAppConnect
+                appId={process.env.NEXT_PUBLIC_META_APP_ID}
+                configId={process.env.NEXT_PUBLIC_META_CONFIG_ID}
+              />
+            ) : (
+              <button
+                onClick={connect}
+                disabled={busy}
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+              >
+                {busy ? "Opening…" : "Connect"}
+              </button>
+            ))}
           {channel.status === "degraded" && (
             <button
               onClick={connect}

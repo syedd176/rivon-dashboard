@@ -88,12 +88,9 @@ export const PROVIDER_ORDER: ChannelProvider[] = [
  * exercised end to end before any real connection exists.
  */
 export const MOCK_CHANNELS: Channel[] = [
-  {
-    provider: "whatsapp",
-    status: "connected",
-    identifier: "+44 7700 900123",
-    lastActivityMinutesAgo: 2,
-  },
+  // Disconnected so the Embedded Signup button is visible. Flip to
+  // `connected` with an identifier to see the connected state.
+  { provider: "whatsapp", status: "disconnected" },
   {
     provider: "instagram",
     status: "degraded",
