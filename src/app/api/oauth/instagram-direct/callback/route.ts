@@ -98,12 +98,33 @@ export async function GET(req: NextRequest) {
       `&client_secret=${encodeURIComponent(appSecret)}` +
       `&access_token=${encodeURIComponent(cleanShort)}`;
 
-    const longRes = await fetch(longUrl, {
+    let longRes = await fetch(longUrl, {
       method: "GET",
       headers: { Accept: "application/json" },
       cache: "no-store",
     });
-    const longBody = await longRes.json();
+    let longBody = await longRes.json();
+
+    // The documented GET is being refused with a method error that direct
+    // curl calls do not reproduce. Try the same parameters as a POST before
+    // giving up — some Instagram token endpoints accept both, and a working
+    // connection matters more than matching the documented verb.
+    if (!longRes.ok && longBody?.error?.code === 100) {
+      longRes = await fetch("https://graph.instagram.com/access_token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "ig_exchange_token",
+          client_secret: appSecret,
+          access_token: cleanShort,
+        }),
+      });
+      longBody = await longRes.json();
+      console.log("ig long-lived retried as POST", {
+        status: longRes.status,
+        ok: longRes.ok,
+      });
+    }
 
     // Surface the token shape when this fails, since "Failed to decrypt"
     // and a method error look identical from the outside.
