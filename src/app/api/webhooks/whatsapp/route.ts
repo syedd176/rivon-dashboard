@@ -77,11 +77,11 @@ export async function POST(req: NextRequest) {
     for (const message of extractMessages(body)) {
       // TODO: resolve providerPhoneNumberId → tenant_id. Getting this wrong
       // sends one business's customers to another business's agent.
-      recordInbound(message);
+      await recordInbound(message);
     }
 
     for (const status of extractStatuses(body)) {
-      recordStatus(status);
+      await recordStatus(status);
     }
   } catch (err) {
     // Never let a processing fault turn into a 500 — Meta would retry, and

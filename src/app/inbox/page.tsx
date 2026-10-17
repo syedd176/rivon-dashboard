@@ -144,9 +144,9 @@ export default function InboxPage() {
       )}
 
       <p className="mt-10 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-        Held in memory, not a database. Messages are lost on redeploy, and each
-        serverless instance has its own copy. This proves the path works; it is
-        not storage.
+        Stored in Postgres, append-only, deduplicated on provider message id.
+        A first slice of the real messages table — tenant scoping and row-level
+        security land when there is more than one tenant.
       </p>
     </main>
   );
