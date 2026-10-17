@@ -90,12 +90,17 @@ export async function GET(req: NextRequest) {
 
     // 4. Which of them has an Instagram professional account attached?
     for (const page of pages) {
+      // Two fields, because Meta links accounts two ways and only one of
+      // them is `instagram_business_account`. Checking just that one reports
+      // "no Instagram found" for accounts that are in fact connected.
       const igRes = await fetch(
-        `${GRAPH}/${page.id}?fields=instagram_business_account{id,username}`,
+        `${GRAPH}/${page.id}?fields=instagram_business_account{id,username},connected_instagram_account{id,username}`,
         { headers: { Authorization: `Bearer ${page.access_token}` } }
       );
       const igBody = await igRes.json();
-      const ig = igBody.instagram_business_account;
+      const ig =
+        igBody.instagram_business_account ??
+        igBody.connected_instagram_account;
       if (!ig?.id) continue;
 
       // 5. Subscribe the Page so Instagram messages reach our webhook.
