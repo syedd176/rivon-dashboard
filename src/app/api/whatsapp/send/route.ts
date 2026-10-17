@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSendCredentials } from "@/lib/channels-store";
 
 /**
  * Send one WhatsApp message through the Cloud API.
@@ -18,7 +19,12 @@ import { NextRequest, NextResponse } from "next/server";
 const GRAPH = "https://graph.facebook.com/v25.0";
 
 export async function POST(req: NextRequest) {
-  const { to, text } = (await req.json()) as { to?: string; text?: string };
+  const { to, text, fromPhoneNumberId } = (await req.json()) as {
+    to?: string;
+    text?: string;
+    /** Which connected number to send from. Defaults to the most recent. */
+    fromPhoneNumberId?: string;
+  };
 
   if (!to || !text) {
     return NextResponse.json(
@@ -27,18 +33,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  // Prefer a channel connected through Embedded Signup: its system-user
+  // token never expires. Falls back to the env test number.
+  const creds = await getSendCredentials(fromPhoneNumberId);
 
-  if (!phoneNumberId || !token) {
+  if (!creds) {
     return NextResponse.json(
       {
         error:
-          "Not configured. Set WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN from the WhatsApp API Setup page.",
+          "No connected WhatsApp number. Connect one on the Channels page, or set WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN.",
       },
       { status: 503 }
     );
   }
+  const { phoneNumberId, accessToken: token } = creds;
 
   // Meta wants digits only — no spaces, no plus, no dashes.
   const recipient = to.replace(/[^\d]/g, "");

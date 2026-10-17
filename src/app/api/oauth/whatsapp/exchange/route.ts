@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { saveChannel } from "@/lib/channels-store";
 
 /**
  * Server-side completion of WhatsApp Embedded Signup.
@@ -128,17 +129,16 @@ export async function POST(req: NextRequest) {
       displayNumber = info.display_phone_number ?? "";
     }
 
-    // TODO — persist against the tenant, with the token encrypted at rest:
-    //   await db.channels.upsert({
-    //     tenant_id, provider: "whatsapp",
-    //     provider_phone_number_id: phone_number_id,
-    //     waba_id, business_id,
-    //     encrypted_token: encrypt(accessToken),
-    //     status: "connected", last_health_check: now(),
-    //   });
-    //
-    // Until that exists, the token is deliberately NOT returned to the
-    // browser and NOT logged. It is dropped at the end of this request.
+    // Persist so the dashboard can send on this number later. The token is
+    // never returned to the browser and never logged.
+    // TODO: encrypt at rest, and scope by tenant_id, before a second tenant.
+    await saveChannel({
+      providerPhoneNumberId: phone_number_id,
+      wabaId: waba_id,
+      businessId: business_id,
+      displayNumber: displayNumber || undefined,
+      accessToken,
+    });
 
     return NextResponse.json({
       ok: true,
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
       waba_id,
       phone_number_id,
       business_id,
-      persisted: false, // flips to true once the backend exists
+      persisted: true,
     });
   } catch {
     return NextResponse.json(

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { NormalisedMessage, MessageStatus } from "@/lib/whatsapp-types";
+import { ReplyBox } from "@/components/ReplyBox";
 
 /**
  * Live view of messages arriving on the webhook.
@@ -99,6 +100,15 @@ export default function InboxPage() {
             <p className="mt-2 text-lg text-slate-800 dark:text-slate-200">
               {m.text}
             </p>
+
+            <ReplyBox
+              to={m.from}
+              senderName={m.senderName}
+              windowOpen={
+                Date.now() - new Date(m.receivedAt).getTime() <
+                24 * 60 * 60 * 1000
+              }
+            />
 
             <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
               <div>
