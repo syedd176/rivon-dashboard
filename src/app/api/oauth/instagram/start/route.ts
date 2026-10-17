@@ -19,12 +19,16 @@ import { randomBytes } from "crypto";
  *     "Allow Access to Messages" must be ON
  */
 
+// Exactly what the app has been granted on the Instagram API with Facebook
+// Login use case. `pages_manage_metadata` is NOT valid here — requesting it
+// makes Meta reject the whole dialog with "Invalid Scopes".
 const SCOPES = [
   "instagram_basic",
   "instagram_manage_messages",
-  "pages_manage_metadata",
+  "instagram_manage_comments",
   "pages_show_list",
   "pages_read_engagement",
+  "business_management",
 ];
 
 export async function GET(req: NextRequest) {
