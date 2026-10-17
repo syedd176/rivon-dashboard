@@ -55,6 +55,9 @@ function ensureSchema() {
         status            TEXT        NOT NULL DEFAULT 'connected',
         connected_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
         last_health_check TIMESTAMPTZ,
+        -- Instagram Login tokens last ~60 days and must be refreshed.
+        -- Facebook Page tokens never expire, so this stays null for those.
+        expires_at        TIMESTAMPTZ,
         UNIQUE (provider, external_id)
       )`;
   })();
@@ -68,6 +71,8 @@ export interface SocialChannelRecord {
   pageId: string;
   displayName?: string;
   accessToken: string;
+  /** Set for Instagram Login tokens. Null means it never expires. */
+  expiresAt?: Date;
 }
 
 export async function saveSocialChannel(c: SocialChannelRecord) {
@@ -76,39 +81,54 @@ export async function saveSocialChannel(c: SocialChannelRecord) {
   await sql`
     INSERT INTO social_channels (
       provider, external_id, page_id, display_name, access_token,
-      status, last_health_check
+      status, last_health_check, expires_at
     ) VALUES (
       ${c.provider}, ${c.externalId}, ${c.pageId},
-      ${c.displayName ?? null}, ${c.accessToken}, 'connected', now()
+      ${c.displayName ?? null}, ${c.accessToken}, 'connected', now(),
+      ${c.expiresAt ? c.expiresAt.toISOString() : null}
     )
     ON CONFLICT (provider, external_id) DO UPDATE SET
       access_token      = EXCLUDED.access_token,
       page_id           = EXCLUDED.page_id,
       display_name      = EXCLUDED.display_name,
       status            = 'connected',
-      last_health_check = now()`;
+      last_health_check = now(),
+      expires_at        = EXCLUDED.expires_at`;
 }
 
 /** Credentials for replying on Instagram or Messenger. */
 export async function getSocialCredentials(
   provider: "instagram" | "messenger",
   externalId?: string
-): Promise<{ pageId: string; accessToken: string } | null> {
+): Promise<{
+  pageId: string;
+  accessToken: string;
+  /** True for Instagram Login — a different API host and payload shape. */
+  isDirect: boolean;
+  expiresAt?: Date;
+} | null> {
   await ensureSchema();
   const sql = db();
   const rows = externalId
     ? await sql`
-        SELECT page_id, access_token FROM social_channels
+        SELECT page_id, external_id, access_token, expires_at
+        FROM social_channels
         WHERE provider = ${provider} AND external_id = ${externalId}
           AND status = 'connected' LIMIT 1`
     : await sql`
-        SELECT page_id, access_token FROM social_channels
+        SELECT page_id, external_id, access_token, expires_at
+        FROM social_channels
         WHERE provider = ${provider} AND status = 'connected'
         ORDER BY connected_at DESC LIMIT 1`;
   if (!rows.length) return null;
+  const r = rows[0];
   return {
-    pageId: rows[0].page_id as string,
-    accessToken: rows[0].access_token as string,
+    pageId: r.page_id as string,
+    accessToken: r.access_token as string,
+    // Instagram Login stores the account id as its own page_id; a Facebook
+    // Page token has a genuinely different Page id.
+    isDirect: r.page_id === r.external_id,
+    expiresAt: r.expires_at ? new Date(r.expires_at as string) : undefined,
   };
 }
 

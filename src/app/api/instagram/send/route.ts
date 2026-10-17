@@ -40,8 +40,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Instagram Login sends through graph.instagram.com against the account
+  // itself; Facebook Login sends through graph.facebook.com via the Page.
+  const endpoint = creds.isDirect
+    ? `https://graph.instagram.com/v23.0/${creds.pageId}/messages`
+    : `${GRAPH}/${creds.pageId}/messages`;
+
   try {
-    const res = await fetch(`${GRAPH}/${creds.pageId}/messages`, {
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${creds.accessToken}`,
@@ -50,7 +56,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         recipient: { id: to },
         message: { text },
-        messaging_type: "RESPONSE",
+        ...(creds.isDirect ? {} : { messaging_type: "RESPONSE" }),
       }),
     });
 

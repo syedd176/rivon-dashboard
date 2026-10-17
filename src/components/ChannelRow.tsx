@@ -63,9 +63,13 @@ export function ChannelRow({ channel }: { channel: Channel }) {
 
   function connect() {
     setBusy(true);
-    // Real flow: redirect to /api/oauth/{provider}/start, which builds the
-    // Meta authorise URL and sends the owner there. Mocked for now.
-    window.location.href = `/api/oauth/${channel.provider}/start`;
+    // Instagram uses Instagram Login rather than Facebook Login: no Page
+    // required, no Account Centre linking, two screens instead of five.
+    const route =
+      channel.provider === "instagram"
+        ? "instagram-direct"
+        : channel.provider;
+    window.location.href = `/api/oauth/${route}/start`;
   }
 
   return (

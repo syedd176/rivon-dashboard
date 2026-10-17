@@ -54,8 +54,12 @@ export async function POST(req: NextRequest) {
   } = { ok: false, privateSent: false };
 
   try {
+    const base = creds.isDirect
+      ? "https://graph.instagram.com/v23.0"
+      : GRAPH;
+
     // 1. Public reply, under the comment.
-    const pubRes = await fetch(`${GRAPH}/${commentId}/replies`, {
+    const pubRes = await fetch(`${base}/${commentId}/replies`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${creds.accessToken}`,
@@ -82,7 +86,7 @@ export async function POST(req: NextRequest) {
     // 2. Private reply. Allowed once per comment, and only if the person
     //    accepts messages — so a failure here is reported, not fatal.
     if (privateMessage) {
-      const dmRes = await fetch(`${GRAPH}/${creds.pageId}/messages`, {
+      const dmRes = await fetch(`${base}/${creds.pageId}/messages`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${creds.accessToken}`,
