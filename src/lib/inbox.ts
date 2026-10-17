@@ -44,6 +44,7 @@ function ensureSchema() {
         body                TEXT        NOT NULL,
         message_type        TEXT        NOT NULL,
         media_id            TEXT,
+        comment_id          TEXT,
         received_at         TIMESTAMPTZ NOT NULL,
         raw                 JSONB       NOT NULL,
         created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -74,12 +75,14 @@ export async function recordInbound(message: NormalisedMessage) {
   await sql`
     INSERT INTO inbound_messages (
       provider, provider_message_id, phone_number_id, waba_id,
-      sender, sender_name, body, message_type, media_id, received_at, raw
+      sender, sender_name, body, message_type, media_id, comment_id,
+      received_at, raw
     ) VALUES (
       ${message.provider}, ${message.providerMessageId},
       ${message.providerPhoneNumberId}, ${message.wabaId},
       ${message.from}, ${message.senderName ?? null}, ${message.text},
       ${message.messageType}, ${message.mediaId ?? null},
+      ${(message as { commentId?: string }).commentId ?? null},
       ${message.receivedAt.toISOString()}, ${JSON.stringify(message.raw)}
     )
     ON CONFLICT (provider, provider_message_id) DO NOTHING`;
@@ -104,7 +107,8 @@ export async function getInbox() {
 
   const messages = await sql`
     SELECT provider_message_id, provider, phone_number_id, waba_id,
-           sender, sender_name, body, message_type, media_id, received_at
+           sender, sender_name, body, message_type, media_id, comment_id,
+           received_at
     FROM inbound_messages
     ORDER BY received_at DESC
     LIMIT 50`;
@@ -126,6 +130,7 @@ export async function getInbox() {
       text: r.body as string,
       messageType: r.message_type as string,
       mediaId: (r.media_id ?? undefined) as string | undefined,
+      commentId: (r.comment_id ?? undefined) as string | undefined,
       receivedAt: r.received_at as string,
       raw: null,
     })),

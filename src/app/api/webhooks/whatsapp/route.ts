@@ -9,6 +9,10 @@ import {
   extractMessagingMessages,
   type MessagingWebhookBody,
 } from "@/lib/instagram-types";
+import {
+  extractComments,
+  type CommentWebhookBody,
+} from "@/lib/comment-types";
 import { recordInbound, recordStatus } from "@/lib/inbox";
 
 /**
@@ -81,10 +85,15 @@ export async function POST(req: NextRequest) {
     // Instagram and Messenger use a different payload shape, and arrive on
     // the same endpoint. Route on `object` rather than running both parsers.
     if (body.object === "instagram" || body.object === "page") {
+      // One Instagram payload carries either messaging events or comment
+      // changes, never both. Run whichever is present.
       for (const message of extractMessagingMessages(
         body as MessagingWebhookBody
       )) {
         await recordInbound(message);
+      }
+      for (const comment of extractComments(body as CommentWebhookBody)) {
+        await recordInbound(comment);
       }
       return NextResponse.json({ ok: true });
     }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { NormalisedMessage, MessageStatus } from "@/lib/whatsapp-types";
 import { ReplyBox } from "@/components/ReplyBox";
+import { CommentReplyBox } from "@/components/CommentReplyBox";
 
 /**
  * Live view of messages arriving on the webhook.
@@ -12,8 +13,10 @@ import { ReplyBox } from "@/components/ReplyBox";
  * Team B's, and reads from Postgres.
  */
 
+type InboxMessage = NormalisedMessage & { commentId?: string };
+
 interface Inbox {
-  messages: NormalisedMessage[];
+  messages: InboxMessage[];
   statuses: MessageStatus[];
 }
 
@@ -87,6 +90,11 @@ export default function InboxPage() {
           >
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <p className="font-medium text-slate-900 dark:text-slate-100">
+                {m.messageType === "comment" && (
+                  <span className="mr-2 rounded bg-pink-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-pink-700 dark:bg-pink-950 dark:text-pink-300">
+                    comment
+                  </span>
+                )}
                 {m.senderName ?? "Unknown"}{" "}
                 <span className="font-normal text-slate-500 dark:text-slate-400">
                   +{m.from}
@@ -101,16 +109,24 @@ export default function InboxPage() {
               {m.text}
             </p>
 
-            <ReplyBox
-              to={m.from}
-              senderName={m.senderName}
-              provider={m.provider}
-              accountId={m.providerPhoneNumberId}
-              windowOpen={
-                Date.now() - new Date(m.receivedAt).getTime() <
-                24 * 60 * 60 * 1000
-              }
-            />
+            {m.messageType === "comment" && m.commentId ? (
+              <CommentReplyBox
+                commentId={m.commentId}
+                senderName={m.senderName}
+                accountId={m.providerPhoneNumberId}
+              />
+            ) : (
+              <ReplyBox
+                to={m.from}
+                senderName={m.senderName}
+                provider={m.provider}
+                accountId={m.providerPhoneNumberId}
+                windowOpen={
+                  Date.now() - new Date(m.receivedAt).getTime() <
+                  24 * 60 * 60 * 1000
+                }
+              />
+            )}
 
             <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
               <div>
