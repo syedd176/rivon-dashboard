@@ -80,7 +80,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 2. Short-lived → long-lived. Without this it expires in about an hour.
+    // 2. Short-lived → long-lived. Without this the token dies in about an
+    //    hour, and a short-lived token cannot call /me or be refreshed — so
+    //    a silent fallback here produces a connection that looks fine and
+    //    stops working before anyone notices. Fail loudly instead.
     const longRes = await fetch(
       "https://graph.instagram.com/access_token?" +
         new URLSearchParams({
@@ -90,18 +93,35 @@ export async function GET(req: NextRequest) {
         })
     );
     const longBody = await longRes.json();
-    const token: string = longBody?.access_token ?? shortToken;
+
+    if (!longRes.ok || !longBody?.access_token) {
+      const why =
+        longBody?.error?.message ??
+        longBody?.error_message ??
+        "could not obtain a long-lived token";
+      return redirect(
+        req,
+        `exchange_failed&detail=${encodeURIComponent(String(why).slice(0, 180))}`
+      );
+    }
+
+    const token: string = longBody.access_token;
     // ~60 days. Must be refreshed before then or the tenant goes dark.
     const expiresIn: number | undefined = longBody?.expires_in;
 
-    // 3. Who connected? Shown to the owner so they can confirm.
+    // 3. Who connected? Shown to the owner so they can confirm the right
+    //    account was linked. Best-effort — a missing name is cosmetic.
     let username: string | undefined;
-    const meRes = await fetch(
-      `https://graph.instagram.com/v23.0/me?fields=user_id,username&access_token=${token}`
-    );
-    if (meRes.ok) {
-      const me = await meRes.json();
-      username = me?.username;
+    try {
+      const meRes = await fetch(
+        `https://graph.instagram.com/v25.0/me?fields=user_id,username&access_token=${token}`
+      );
+      if (meRes.ok) {
+        const me = await meRes.json();
+        username = me?.username;
+      }
+    } catch {
+      // Leave it unnamed rather than failing a working connection.
     }
 
     await saveSocialChannel({
