@@ -21,10 +21,16 @@ import { randomBytes } from "crypto";
  * Also note this route cannot serve Messenger — that still needs a Page.
  */
 
+// Matches the Embed URL Meta generates for this app, exactly. Requesting a
+// subset can fail validation, so the list mirrors what the dashboard expects.
+// content_publish and manage_insights are unused by the code today; drop them
+// from both here and the app config before App Review.
 const SCOPES = [
   "instagram_business_basic",
   "instagram_business_manage_messages",
   "instagram_business_manage_comments",
+  "instagram_business_content_publish",
+  "instagram_business_manage_insights",
 ];
 
 export async function GET(req: NextRequest) {
@@ -47,6 +53,9 @@ export async function GET(req: NextRequest) {
   authorise.searchParams.set("response_type", "code");
   authorise.searchParams.set("scope", SCOPES.join(","));
   authorise.searchParams.set("state", state);
+  // Meta's generated embed URL sets this; it makes the owner pick the
+  // Instagram account explicitly rather than silently reusing a session.
+  authorise.searchParams.set("force_reauth", "true");
 
   const res = NextResponse.redirect(authorise);
   res.cookies.set("oauth_state_ig_direct", state, {
