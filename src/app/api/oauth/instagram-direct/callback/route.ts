@@ -66,7 +66,18 @@ export async function GET(req: NextRequest) {
       : undefined;
 
     if (!shortRes.ok || !shortToken || !userId) {
-      return redirect(req, "exchange_failed");
+      // Meta says exactly what is wrong — a bad secret, a mismatched
+      // redirect URI, an expired code. Swallowing it leaves the owner with
+      // nothing to act on, so pass the reason through.
+      const why =
+        shortBody?.error_message ??
+        shortBody?.error?.message ??
+        shortBody?.error_type ??
+        "unknown";
+      return redirect(
+        req,
+        `exchange_failed&detail=${encodeURIComponent(String(why).slice(0, 180))}`
+      );
     }
 
     // 2. Short-lived → long-lived. Without this it expires in about an hour.

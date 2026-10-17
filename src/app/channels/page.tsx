@@ -1,5 +1,7 @@
 import { ChannelRow } from "@/components/ChannelRow";
 import { getChannels, PROVIDER_ORDER, type Channel } from "@/lib/channels";
+import { Suspense } from "react";
+import { ConnectResult } from "@/components/ConnectResult";
 
 export const metadata = {
   title: "Channels · Rivon",
@@ -32,6 +34,10 @@ export default async function ChannelsPage() {
           it is sent.
         </p>
       </header>
+
+      <Suspense fallback={null}>
+        <ConnectResult />
+      </Suspense>
 
       {needsAttention > 0 && (
         <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-950/40">
