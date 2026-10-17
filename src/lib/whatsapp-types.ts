@@ -62,7 +62,7 @@ export interface MessageStatus {
 export interface NormalisedMessage {
   /** Provider's id. Unique per (tenant, provider_message_id) — the dedupe key. */
   providerMessageId: string;
-  provider: "whatsapp";
+  provider: "whatsapp" | "instagram" | "messenger";
   /** Routes to a tenant. The first lookup any inbound does. */
   providerPhoneNumberId: string;
   wabaId: string;

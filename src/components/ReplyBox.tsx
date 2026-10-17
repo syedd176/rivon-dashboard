@@ -19,10 +19,14 @@ export function ReplyBox({
   to,
   senderName,
   windowOpen,
+  provider = "whatsapp",
+  accountId,
 }: {
   to: string;
   senderName?: string;
   windowOpen: boolean;
+  provider?: "whatsapp" | "instagram" | "messenger";
+  accountId?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
@@ -36,10 +40,13 @@ export function ReplyBox({
     if (!text.trim()) return;
     setState("sending");
     try {
-      const res = await fetch("/api/whatsapp/send", {
+      // Each channel has its own send endpoint — different API shapes.
+      const endpoint =
+        provider === "whatsapp" ? "/api/whatsapp/send" : "/api/instagram/send";
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to, text }),
+        body: JSON.stringify({ to, text, provider, accountId }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error ?? "Send failed");

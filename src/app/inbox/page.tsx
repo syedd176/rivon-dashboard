@@ -104,6 +104,8 @@ export default function InboxPage() {
             <ReplyBox
               to={m.from}
               senderName={m.senderName}
+              provider={m.provider}
+              accountId={m.providerPhoneNumberId}
               windowOpen={
                 Date.now() - new Date(m.receivedAt).getTime() <
                 24 * 60 * 60 * 1000
@@ -111,6 +113,10 @@ export default function InboxPage() {
             />
 
             <dl className="mt-3 flex flex-wrap gap-x-5 gap-y-1 border-t border-slate-100 pt-2.5 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <div>
+                <dt className="inline font-medium">via </dt>
+                <dd className="inline font-mono">{m.provider}</dd>
+              </div>
               <div>
                 <dt className="inline font-medium">type </dt>
                 <dd className="inline font-mono">{m.messageType}</dd>

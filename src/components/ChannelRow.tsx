@@ -42,6 +42,8 @@ export function ChannelRow({ channel }: { channel: Channel }) {
 
   // Meta channels cannot be connected until Rivon's own Meta app exists.
   // The widget needs no such thing, which is why it always works.
+  // Instagram and Messenger use a plain OAuth redirect, so they only need
+  // the app id. WhatsApp additionally needs the Embedded Signup config.
   const needsPlatformSetup =
     channel.provider !== "widget" && !process.env.NEXT_PUBLIC_META_APP_ID;
 

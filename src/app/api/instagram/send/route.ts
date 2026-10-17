@@ -1,0 +1,83 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSocialCredentials } from "@/lib/channels-store";
+
+/**
+ * Reply on Instagram or Messenger.
+ *
+ * Different from WhatsApp in three ways worth knowing:
+ *   - sent through the PAGE, not the Instagram account
+ *   - the recipient is an opaque scoped id, not a phone number
+ *   - the window is 24 hours from the customer's last message, same idea
+ *     but enforced by a different rule set
+ */
+
+const GRAPH = "https://graph.facebook.com/v25.0";
+
+export async function POST(req: NextRequest) {
+  const { to, text, provider, accountId } = (await req.json()) as {
+    to?: string;
+    text?: string;
+    provider?: "instagram" | "messenger";
+    accountId?: string;
+  };
+
+  if (!to || !text) {
+    return NextResponse.json(
+      { error: "Both a recipient and a message are required." },
+      { status: 400 }
+    );
+  }
+
+  const channel = provider ?? "instagram";
+  const creds = await getSocialCredentials(channel, accountId);
+
+  if (!creds) {
+    return NextResponse.json(
+      {
+        error: `No connected ${channel} account. Connect one on the Channels page.`,
+      },
+      { status: 503 }
+    );
+  }
+
+  try {
+    const res = await fetch(`${GRAPH}/${creds.pageId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${creds.accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        recipient: { id: to },
+        message: { text },
+        messaging_type: "RESPONSE",
+      }),
+    });
+
+    const body = await res.json();
+
+    if (!res.ok) {
+      const message: string =
+        body?.error?.message ?? "The message could not be sent.";
+      // Code 10 covers the closed messaging window — the commonest failure,
+      // and one with a specific explanation rather than a generic retry.
+      const hint =
+        body?.error?.code === 10
+          ? " The 24-hour reply window for this conversation has closed."
+          : body?.error?.code === 190
+            ? " The access token is no longer valid. Reconnect the account."
+            : "";
+      return NextResponse.json(
+        { error: message + hint, code: body?.error?.code },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ ok: true, messageId: body?.message_id });
+  } catch {
+    return NextResponse.json(
+      { error: "Could not reach Meta. Please try again." },
+      { status: 502 }
+    );
+  }
+}

@@ -5,6 +5,10 @@ import {
   extractStatuses,
   type WhatsAppWebhookBody,
 } from "@/lib/whatsapp-types";
+import {
+  extractMessagingMessages,
+  type MessagingWebhookBody,
+} from "@/lib/instagram-types";
 import { recordInbound, recordStatus } from "@/lib/inbox";
 
 /**
@@ -74,6 +78,17 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Instagram and Messenger use a different payload shape, and arrive on
+    // the same endpoint. Route on `object` rather than running both parsers.
+    if (body.object === "instagram" || body.object === "page") {
+      for (const message of extractMessagingMessages(
+        body as MessagingWebhookBody
+      )) {
+        await recordInbound(message);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     for (const message of extractMessages(body)) {
       // TODO: resolve providerPhoneNumberId → tenant_id. Getting this wrong
       // sends one business's customers to another business's agent.

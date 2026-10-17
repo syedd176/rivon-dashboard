@@ -59,7 +59,7 @@ export const PROVIDERS: Record<ChannelProvider, ProviderMeta> = {
     name: "Instagram",
     tagline: "Answer direct messages sent to your Instagram profile",
     requirement:
-      "Your Instagram account must be a Professional account linked to a Facebook Page.",
+      "Your Instagram must be a Professional account linked to a Facebook Page, with Settings → Message controls → Connected Tools → Allow Access to Messages turned on.",
     accent: "#E1306C",
   },
   messenger: {

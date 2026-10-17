@@ -41,8 +41,83 @@ function ensureSchema() {
         last_health_check   TIMESTAMPTZ,
         UNIQUE (provider, provider_phone_number_id)
       )`;
+    // Instagram and Messenger: a Page token rather than a phone number.
+    // external_id is the routing key inbound webhooks resolve against —
+    // the Instagram account id, or the Page id for Messenger.
+    await sql`
+      CREATE TABLE IF NOT EXISTS social_channels (
+        id                BIGSERIAL PRIMARY KEY,
+        provider          TEXT        NOT NULL,
+        external_id       TEXT        NOT NULL,
+        page_id           TEXT        NOT NULL,
+        display_name      TEXT,
+        access_token      TEXT        NOT NULL,
+        status            TEXT        NOT NULL DEFAULT 'connected',
+        connected_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_health_check TIMESTAMPTZ,
+        UNIQUE (provider, external_id)
+      )`;
   })();
   return ready;
+}
+
+export interface SocialChannelRecord {
+  provider: "instagram" | "messenger";
+  /** Instagram account id, or Page id for Messenger. The routing key. */
+  externalId: string;
+  pageId: string;
+  displayName?: string;
+  accessToken: string;
+}
+
+export async function saveSocialChannel(c: SocialChannelRecord) {
+  await ensureSchema();
+  const sql = db();
+  await sql`
+    INSERT INTO social_channels (
+      provider, external_id, page_id, display_name, access_token,
+      status, last_health_check
+    ) VALUES (
+      ${c.provider}, ${c.externalId}, ${c.pageId},
+      ${c.displayName ?? null}, ${c.accessToken}, 'connected', now()
+    )
+    ON CONFLICT (provider, external_id) DO UPDATE SET
+      access_token      = EXCLUDED.access_token,
+      page_id           = EXCLUDED.page_id,
+      display_name      = EXCLUDED.display_name,
+      status            = 'connected',
+      last_health_check = now()`;
+}
+
+/** Credentials for replying on Instagram or Messenger. */
+export async function getSocialCredentials(
+  provider: "instagram" | "messenger",
+  externalId?: string
+): Promise<{ pageId: string; accessToken: string } | null> {
+  await ensureSchema();
+  const sql = db();
+  const rows = externalId
+    ? await sql`
+        SELECT page_id, access_token FROM social_channels
+        WHERE provider = ${provider} AND external_id = ${externalId}
+          AND status = 'connected' LIMIT 1`
+    : await sql`
+        SELECT page_id, access_token FROM social_channels
+        WHERE provider = ${provider} AND status = 'connected'
+        ORDER BY connected_at DESC LIMIT 1`;
+  if (!rows.length) return null;
+  return {
+    pageId: rows[0].page_id as string,
+    accessToken: rows[0].access_token as string,
+  };
+}
+
+export async function listSocialChannels() {
+  await ensureSchema();
+  const sql = db();
+  return sql`
+    SELECT provider, external_id, page_id, display_name, status, connected_at
+    FROM social_channels ORDER BY connected_at DESC`;
 }
 
 export interface ChannelRecord {
