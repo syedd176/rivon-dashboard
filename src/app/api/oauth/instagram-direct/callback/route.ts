@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         "unknown";
       return redirect(
         req,
-        `exchange_failed&detail=${encodeURIComponent(String(why).slice(0, 180))}`
+        `exchange_failed&detail=${encodeURIComponent("step 1 (code exchange): " + String(why).slice(0, 150))}`
       );
     }
 
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
         "could not obtain a long-lived token";
       return redirect(
         req,
-        `exchange_failed&detail=${encodeURIComponent(String(why).slice(0, 180))}`
+        `exchange_failed&detail=${encodeURIComponent("step 2 (long-lived): " + String(why).slice(0, 150))}`
       );
     }
 
