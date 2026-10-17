@@ -63,6 +63,11 @@ function ensureSchema() {
     await sql`
       CREATE INDEX IF NOT EXISTS inbound_messages_received_idx
         ON inbound_messages (received_at DESC)`;
+    // CREATE TABLE IF NOT EXISTS silently skips an existing table, so a
+    // column added later never lands. Add it explicitly.
+    await sql`
+      ALTER TABLE inbound_messages
+        ADD COLUMN IF NOT EXISTS comment_id TEXT`;
   })();
   return ready;
 }

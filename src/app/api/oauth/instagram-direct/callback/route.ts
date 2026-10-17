@@ -87,19 +87,21 @@ export async function GET(req: NextRequest) {
     // Explicit GET with no extra headers. Anything that makes fetch send a
     // body or a content-type turns this into a request Meta reports as
     // "Unsupported request - method type: get".
+    // Some Instagram tokens arrive already URL-encoded. Running them through
+    // URLSearchParams encodes them a second time, and Meta then fails to
+    // parse the token — reporting it, unhelpfully, as a method error.
+    const cleanShort = decodeURIComponent(shortToken);
+
     const longUrl =
-      "https://graph.instagram.com/access_token?" +
-      new URLSearchParams({
-        grant_type: "ig_exchange_token",
-        client_secret: appSecret,
-        access_token: shortToken,
-      }).toString();
+      "https://graph.instagram.com/access_token" +
+      `?grant_type=ig_exchange_token` +
+      `&client_secret=${encodeURIComponent(appSecret)}` +
+      `&access_token=${encodeURIComponent(cleanShort)}`;
 
     const longRes = await fetch(longUrl, {
       method: "GET",
       headers: { Accept: "application/json" },
       cache: "no-store",
-      redirect: "follow",
     });
     const longBody = await longRes.json();
 
@@ -111,6 +113,8 @@ export async function GET(req: NextRequest) {
         body: longBody,
         shortTokenPrefix: shortToken.slice(0, 6),
         shortTokenLength: shortToken.length,
+        hadPercentEncoding: shortToken !== decodeURIComponent(shortToken),
+        tail: shortToken.slice(-6),
       });
     }
 
