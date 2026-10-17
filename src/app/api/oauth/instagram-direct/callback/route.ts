@@ -84,15 +84,35 @@ export async function GET(req: NextRequest) {
     //    hour, and a short-lived token cannot call /me or be refreshed — so
     //    a silent fallback here produces a connection that looks fine and
     //    stops working before anyone notices. Fail loudly instead.
-    const longRes = await fetch(
+    // Explicit GET with no extra headers. Anything that makes fetch send a
+    // body or a content-type turns this into a request Meta reports as
+    // "Unsupported request - method type: get".
+    const longUrl =
       "https://graph.instagram.com/access_token?" +
-        new URLSearchParams({
-          grant_type: "ig_exchange_token",
-          client_secret: appSecret,
-          access_token: shortToken,
-        })
-    );
+      new URLSearchParams({
+        grant_type: "ig_exchange_token",
+        client_secret: appSecret,
+        access_token: shortToken,
+      }).toString();
+
+    const longRes = await fetch(longUrl, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      redirect: "follow",
+    });
     const longBody = await longRes.json();
+
+    // Surface the token shape when this fails, since "Failed to decrypt"
+    // and a method error look identical from the outside.
+    if (!longRes.ok) {
+      console.error("ig long-lived exchange failed", {
+        status: longRes.status,
+        body: longBody,
+        shortTokenPrefix: shortToken.slice(0, 6),
+        shortTokenLength: shortToken.length,
+      });
+    }
 
     if (!longRes.ok || !longBody?.access_token) {
       const why =
