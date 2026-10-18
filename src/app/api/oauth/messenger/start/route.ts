@@ -18,8 +18,9 @@ import { randomBytes } from "crypto";
 const SCOPES = [
   "pages_messaging", // send and receive messages as the Page
   "pages_show_list", // list which Pages the owner administers
-  "pages_read_engagement", // read Page metadata
-  "business_management",
+  // Subscribes the Page to our webhook in the callback. Without it that POST
+  // fails, the connection looks fine, and no message ever arrives.
+  "pages_manage_metadata",
 ];
 
 export async function GET(req: NextRequest) {
