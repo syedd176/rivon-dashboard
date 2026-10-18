@@ -124,18 +124,36 @@ export async function POST(req: NextRequest) {
  * used to forge a signature byte by byte.
  */
 function verifySignature(body: string, header: string | null): boolean {
-  const secret = process.env.META_APP_SECRET;
+  // Instagram Login webhooks are signed with the INSTAGRAM app secret, while
+  // WhatsApp and Messenger use the Meta app secret. Both arrive on this one
+  // endpoint, so accept either rather than silently dropping Instagram.
+  const secrets = [
+    process.env.META_APP_SECRET,
+    process.env.INSTAGRAM_APP_SECRET,
+  ].filter((s): s is string => Boolean(s));
 
-  if (!secret) {
+  if (!secrets.length) {
     // Fail closed. An unverified webhook is an open door.
-    console.error("META_APP_SECRET is not set — rejecting webhook");
+    console.error("No app secret configured — rejecting webhook");
     return false;
   }
   if (!header?.startsWith("sha256=")) return false;
 
-  const expected = createHmac("sha256", secret).update(body).digest("hex");
   const received = header.slice("sha256=".length);
 
-  if (expected.length !== received.length) return false;
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+  const ok = secrets.some((secret) => {
+    const expected = createHmac("sha256", secret).update(body).digest("hex");
+    if (expected.length !== received.length) return false;
+    return timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+  });
+
+  if (!ok) {
+    // A 401 returns before any other logging, so without this a rejected
+    // webhook looks identical to one that never arrived.
+    console.error("webhook signature matched no configured secret", {
+      secretsTried: secrets.length,
+      bodyPreview: body.slice(0, 80),
+    });
+  }
+  return ok;
 }
