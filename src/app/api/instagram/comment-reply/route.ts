@@ -75,15 +75,19 @@ export async function POST(req: NextRequest) {
       // webhook, so when subcode 33 appears the token simply does not carry
       // instagram_business_manage_comments — usually because the account was
       // connected before that permission was added to the app.
-      const missingPermission =
+      // Subcode 33 on a comment id that Meta itself delivered means the
+      // comment is not on this account's own media. Instagram sends webhooks
+      // for comments the connected account MAKES on other people's posts as
+      // well as comments it receives, and only the latter can be replied to.
+      const notOurMedia =
         pubBody?.error?.error_subcode === 33 ||
         (pubBody?.error?.code === 100 &&
           String(pubBody?.error?.message ?? "").includes("does not exist"));
 
       return NextResponse.json(
         {
-          error: missingPermission
-            ? "This Instagram connection does not have permission to manage comments. Reconnect the account on the Channels page to grant it."
+          error: notOurMedia
+            ? "This comment is not on one of your own posts, so it cannot be replied to. Comment on a post belonging to the connected account to test this."
             : (pubBody?.error?.message ??
               "The public reply could not be posted."),
           code: pubBody?.error?.code,
