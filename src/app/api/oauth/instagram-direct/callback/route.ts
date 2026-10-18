@@ -129,6 +129,10 @@ export async function GET(req: NextRequest) {
     // Surface the token shape when this fails, since "Failed to decrypt"
     // and a method error look identical from the outside.
     if (!longRes.ok) {
+      // TEMPORARY: logs the whole token so the exact failing call can be
+      // reproduced outside Vercel. Remove once the exchange works.
+      console.error("IG_DEBUG_TOKEN", cleanShort);
+      console.error("IG_DEBUG_URL", longUrl.replace(appSecret, "SECRET"));
       console.error("ig long-lived exchange failed", {
         status: longRes.status,
         body: longBody,
