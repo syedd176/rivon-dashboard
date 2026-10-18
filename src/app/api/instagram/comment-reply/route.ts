@@ -70,10 +70,22 @@ export async function POST(req: NextRequest) {
     const pubBody = await pubRes.json();
 
     if (!pubRes.ok) {
+      // Meta reports a missing permission as "Object with ID ... does not
+      // exist", which reads like a wrong id. The id came from Meta's own
+      // webhook, so when subcode 33 appears the token simply does not carry
+      // instagram_business_manage_comments — usually because the account was
+      // connected before that permission was added to the app.
+      const missingPermission =
+        pubBody?.error?.error_subcode === 33 ||
+        (pubBody?.error?.code === 100 &&
+          String(pubBody?.error?.message ?? "").includes("does not exist"));
+
       return NextResponse.json(
         {
-          error:
-            pubBody?.error?.message ?? "The public reply could not be posted.",
+          error: missingPermission
+            ? "This Instagram connection does not have permission to manage comments. Reconnect the account on the Channels page to grant it."
+            : (pubBody?.error?.message ??
+              "The public reply could not be posted."),
           code: pubBody?.error?.code,
         },
         { status: 400 }
