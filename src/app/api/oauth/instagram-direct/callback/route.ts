@@ -129,10 +129,6 @@ export async function GET(req: NextRequest) {
     // Surface the token shape when this fails, since "Failed to decrypt"
     // and a method error look identical from the outside.
     if (!longRes.ok) {
-      // TEMPORARY: logs the whole token so the exact failing call can be
-      // reproduced outside Vercel. Remove once the exchange works.
-      console.error("IG_DEBUG_TOKEN", cleanShort);
-      console.error("IG_DEBUG_URL", longUrl.replace(appSecret, "SECRET"));
       console.error("ig long-lived exchange failed", {
         status: longRes.status,
         body: longBody,
@@ -148,9 +144,20 @@ export async function GET(req: NextRequest) {
         longBody?.error?.message ??
         longBody?.error_message ??
         "could not obtain a long-lived token";
+      // "Unsupported request" from every Instagram Graph endpoint means the
+      // app is not yet permitted to call them — not that the request is
+      // malformed. Instagram requires App Review before live data access,
+      // and a token issued in development mode cannot be used until then.
+      const notPermitted =
+        longBody?.error?.code === 100 &&
+        String(why).includes("Unsupported request");
       return redirect(
         req,
-        `exchange_failed&detail=${encodeURIComponent("step 2 (long-lived): " + String(why).slice(0, 150))}`
+        notPermitted
+          ? `exchange_failed&detail=${encodeURIComponent(
+              "Instagram has not granted this app API access yet. Instagram requires App Review before live data can be used, even for your own account."
+            )}`
+          : `exchange_failed&detail=${encodeURIComponent("step 2 (long-lived): " + String(why).slice(0, 150))}`
       );
     }
 
