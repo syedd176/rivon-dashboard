@@ -149,7 +149,14 @@ export async function GET(req: NextRequest) {
 
     // 3. Who connected? Shown to the owner so they can confirm the right
     //    account was linked. Best-effort — a missing name is cosmetic.
+    // /me returns TWO ids and they are not interchangeable:
+    //   user_id — the Instagram Business ID, what /{id}/messages accepts
+    //   id      — an app-scoped id, which that endpoint rejects with
+    //             "Object ... does not exist" even though it is valid
+    // The one from the OAuth response is the app-scoped one, so read user_id
+    // here and send with that.
     let username: string | undefined;
+    let businessId: string | undefined;
     try {
       const meRes = await fetch(
         `https://graph.instagram.com/v25.0/me?fields=user_id,username&access_token=${token}`
@@ -157,6 +164,7 @@ export async function GET(req: NextRequest) {
       if (meRes.ok) {
         const me = await meRes.json();
         username = me?.username;
+        businessId = me?.user_id ? String(me.user_id) : undefined;
       }
     } catch {
       // Leave it unnamed rather than failing a working connection.
@@ -164,8 +172,10 @@ export async function GET(req: NextRequest) {
 
     await saveSocialChannel({
       provider: "instagram",
-      externalId: userId, // routes inbound Instagram webhooks
-      pageId: userId, // no Page here; the account is its own sender
+      externalId: userId, // app-scoped id — what inbound webhooks carry
+      // The Business ID is what the send endpoint accepts. Falls back to the
+      // app-scoped id only so a connection still records if /me failed.
+      pageId: businessId ?? userId,
       displayName: username ? `@${username}` : undefined,
       accessToken: token,
       expiresAt: expiresIn
