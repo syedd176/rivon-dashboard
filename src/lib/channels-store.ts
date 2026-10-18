@@ -125,9 +125,12 @@ export async function getSocialCredentials(
   return {
     pageId: r.page_id as string,
     accessToken: r.access_token as string,
-    // Instagram Login stores the account id as its own page_id; a Facebook
-    // Page token has a genuinely different Page id.
-    isDirect: r.page_id === r.external_id,
+    // Instagram Login stores the account id as its own page_id, so the two
+    // ids matching used to identify it. Messenger breaks that: a Page is
+    // saved with page_id === external_id too, and the inferred `true` sent a
+    // Facebook Page token to graph.instagram.com, which cannot parse it.
+    // The provider already carries this, so do not infer it.
+    isDirect: provider === "instagram" && r.page_id === r.external_id,
     expiresAt: r.expires_at ? new Date(r.expires_at as string) : undefined,
   };
 }
