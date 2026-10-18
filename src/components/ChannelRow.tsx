@@ -65,10 +65,10 @@ export function ChannelRow({ channel }: { channel: Channel }) {
     setBusy(true);
     // Instagram uses Instagram Login rather than Facebook Login: no Page
     // required, no Account Centre linking, two screens instead of five.
+    // Instagram uses Instagram Login (no Page needed); Messenger has its own
+    // route because it is a Page product and needs different scopes.
     const route =
-      channel.provider === "instagram"
-        ? "instagram-direct"
-        : channel.provider;
+      channel.provider === "instagram" ? "instagram-direct" : channel.provider;
     window.location.href = `/api/oauth/${route}/start`;
   }
 
