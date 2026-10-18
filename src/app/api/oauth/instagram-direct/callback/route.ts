@@ -105,63 +105,45 @@ export async function GET(req: NextRequest) {
     });
     let longBody = await longRes.json();
 
-    // The documented GET is being refused with a method error that direct
-    // curl calls do not reproduce. Try the same parameters as a POST before
-    // giving up — some Instagram token endpoints accept both, and a working
-    // connection matters more than matching the documented verb.
-    if (!longRes.ok && longBody?.error?.code === 100) {
-      longRes = await fetch("https://graph.instagram.com/access_token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "ig_exchange_token",
-          client_secret: appSecret,
-          access_token: cleanShort,
-        }),
-      });
-      longBody = await longRes.json();
-      console.log("ig long-lived retried as POST", {
-        status: longRes.status,
-        ok: longRes.ok,
-      });
-    }
+    // A token that is already long-lived cannot be exchanged again — Meta
+    // returns "Session key invalid" (code 452). That is not a failure: the
+    // token is usable as-is, so carry on with it.
+    const alreadyLongLived =
+      !longRes.ok && longBody?.error?.code === 452;
 
-    // Surface the token shape when this fails, since "Failed to decrypt"
-    // and a method error look identical from the outside.
-    if (!longRes.ok) {
+    if (!longRes.ok && !alreadyLongLived) {
+      const why =
+        longBody?.error?.message ??
+        longBody?.error_message ??
+        "could not obtain a long-lived token";
+
       console.error("ig long-lived exchange failed", {
         status: longRes.status,
         body: longBody,
         shortTokenPrefix: shortToken.slice(0, 6),
         shortTokenLength: shortToken.length,
-        hadPercentEncoding: shortToken !== decodeURIComponent(shortToken),
-        tail: shortToken.slice(-6),
       });
-    }
 
-    if (!longRes.ok || !longBody?.access_token) {
-      const why =
-        longBody?.error?.message ??
-        longBody?.error_message ??
-        "could not obtain a long-lived token";
-      // "Unsupported request" from every Instagram Graph endpoint means the
-      // app is not yet permitted to call them — not that the request is
-      // malformed. Instagram requires App Review before live data access,
-      // and a token issued in development mode cannot be used until then.
+      // Every Instagram Graph endpoint refusing with "Unsupported request"
+      // means the account is not a test user on this app — not that the
+      // request is malformed. That cost a lot of debugging; name it.
       const notPermitted =
         longBody?.error?.code === 100 &&
         String(why).includes("Unsupported request");
+
       return redirect(
         req,
         notPermitted
           ? `exchange_failed&detail=${encodeURIComponent(
-              "Instagram has not granted this app API access yet. Instagram requires App Review before live data can be used, even for your own account."
+              "This Instagram account is not a test user on the app. Add it under App roles, or complete App Review for live access."
             )}`
-          : `exchange_failed&detail=${encodeURIComponent("step 2 (long-lived): " + String(why).slice(0, 150))}`
+          : `exchange_failed&detail=${encodeURIComponent(String(why).slice(0, 160))}`
       );
     }
 
-    const token: string = longBody.access_token;
+    // Either the freshly exchanged token, or the original when it was
+    // already long-lived.
+    const token: string = longBody?.access_token ?? cleanShort;
     // ~60 days. Must be refreshed before then or the tenant goes dark.
     const expiresIn: number | undefined = longBody?.expires_in;
 
