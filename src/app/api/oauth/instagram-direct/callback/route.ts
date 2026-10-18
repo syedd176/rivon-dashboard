@@ -170,12 +170,16 @@ export async function GET(req: NextRequest) {
       // Leave it unnamed rather than failing a working connection.
     }
 
+    // Both inbound and outbound use the Business ID from /me. The id in the
+    // OAuth response is an app-scoped identifier that neither webhooks nor
+    // the send endpoint use — storing it broke the channel lookup, because
+    // webhooks arrive carrying the Business ID and found no matching row.
+    const accountId = businessId ?? userId;
+
     await saveSocialChannel({
       provider: "instagram",
-      externalId: userId, // app-scoped id — what inbound webhooks carry
-      // The Business ID is what the send endpoint accepts. Falls back to the
-      // app-scoped id only so a connection still records if /me failed.
-      pageId: businessId ?? userId,
+      externalId: accountId, // routes inbound webhooks
+      pageId: accountId, // and is the sender for replies
       displayName: username ? `@${username}` : undefined,
       accessToken: token,
       expiresAt: expiresIn
