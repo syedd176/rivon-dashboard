@@ -65,10 +65,13 @@ export async function POST(req: NextRequest) {
     if (!res.ok) {
       const message: string =
         body?.error?.message ?? "The message could not be sent.";
-      // Code 10 covers the closed messaging window — the commonest failure,
-      // and one with a specific explanation rather than a generic retry.
+      // Code 10 covers BOTH the closed 24-hour window and development-mode
+      // gating, and the two call for opposite actions — wait for the
+      // customer to write again, versus add a tester or ship the review.
+      // Meta distinguishes them only in the message text, so read it.
+      const devMode = message.includes("not admins, developers or testers");
       const hint =
-        body?.error?.code === 10
+        body?.error?.code === 10 && !devMode
           ? " The 24-hour reply window for this conversation has closed."
           : body?.error?.code === 190
             ? " The access token is no longer valid. Reconnect the account."
